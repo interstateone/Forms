@@ -31,56 +31,6 @@ extension UntypedField: Hashable {
     public static func ==(lhs: UntypedField, rhs: UntypedField) -> Bool { return lhs.id == rhs.id }
 }
 
-///    ┌─────────┐
-/// ┌─▶│Untouched│──┬───────┐
-/// │  └─────────┘  │       │
-/// │               │       │
-/// │blur           │focus  │
-/// │               │       │
-/// │  ┌─────────┐  │       │
-/// └──│ Focused │◀─┘       │
-///    └─────────┘          │
-///         │               │
-///         │change         │change
-///         ▼               │
-///    ┌─────────┐◀─┐       │
-/// ┌─▶│ Changed │  │change │
-/// │  └─────────┘──┘       │
-/// │       │               │
-/// │focus  │blur           │
-/// │       ▼               │
-/// │  ┌─────────┐          │
-/// └──│ Blurred │◀─────────┘
-///    └─────────┘
-public enum FieldState {
-    case untouched, focused, changed, blurred
-
-    public enum Event {
-        case focus, change, blur
-    }
-
-    mutating func handleEvent(_ event: Event) {
-        switch (self, event) {
-        case (.untouched, .focus):
-            self = .focused
-        case (.untouched, .change):
-            self = .blurred
-        case (.focused, .blur):
-            self = .untouched
-        case (.focused, .change):
-            self = .changed
-        case (.changed, .blur):
-            self = .blurred
-        case (.changed, .change):
-            self = .changed
-        case (.blurred, .focus):
-            self = .changed
-        default:
-            break
-        }
-    }
-}
-
 public class Field<Value: Equatable>: UntypedField {
     public override var untypedValue: Any? {
         get { return value }
@@ -92,22 +42,79 @@ public class Field<Value: Equatable>: UntypedField {
     public var value: Value? {
         didSet {
             valueChanged?(value)
-            state.handleEvent(.change)
+            handleEvent(.change)
         }
     }
     var valueChanged: ((Value?) -> Void)?
 
-    public var state: FieldState = .untouched {
-        didSet {
-            switch (state, validatesWhen) {
-            case (.changed, .changed):
-                validate()
-            case (.blurred, .blurred):
-                validate()
+    ///    ┌─────────┐
+    /// ┌─▶│Untouched│──┬───────┐
+    /// │  └─────────┘  │       │
+    /// │               │       │
+    /// │blur           │focus  │
+    /// │               │       │
+    /// │  ┌─────────┐  │       │
+    /// └──│ Focused │◀─┘       │
+    ///    └─────────┘          │
+    ///         │               │
+    ///         │change         │change
+    ///         ▼               │
+    ///    ┌─────────┐◀─┐       │
+    /// ┌─▶│ Changed │  │change │
+    /// │  └─────────┘──┘       │
+    /// │       │               │
+    /// │focus  │blur           │
+    /// │       ▼               │
+    /// │  ┌─────────┐          │
+    /// └──│ Blurred │◀─────────┘
+    ///    └─────────┘
+    ///      │     ▲
+    ///      └─────┘
+    ///       change
+    public enum State {
+        case untouched, focused, changed, blurred
+
+        public enum Event {
+            case focus, change, blur
+        }
+
+        internal mutating func handleEvent(_ event: Event) {
+            switch (self, event) {
+            case (.untouched, .focus):
+                self = .focused
+            case (.untouched, .change):
+                self = .blurred
+            case (.focused, .blur):
+                self = .untouched
+            case (.focused, .change):
+                self = .changed
+            case (.changed, .blur):
+                self = .blurred
+            case (.changed, .change):
+                self = .changed
+            case (.blurred, .focus):
+                self = .changed
+            case (.blurred, .change):
+                self = .blurred
             default:
                 break
             }
         }
+    }
+
+    private(set) public var state: State = .untouched
+
+    public func handleEvent(_ event: State.Event) {
+        switch (event, validatesWhen) {
+        case (.change, .changed):
+            validate()
+        case (.blur, .blurred):
+            validate()
+        default:
+            break
+        }
+
+        state.handleEvent(event)
     }
 
     public var validators: [ValidatorWrapper<Value>] = []
