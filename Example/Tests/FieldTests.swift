@@ -4,7 +4,7 @@ import Nimble
 
 class FieldSpec: QuickSpec {
     override func spec() {
-        enum Id: String { case subject }
+        enum Id: String { case subject, dependency }
         var subject: Field<String>!
 
         beforeEach {
@@ -155,6 +155,100 @@ class FieldSpec: QuickSpec {
                     }
                     it("validates") {
                         expect(onValidateInvocationCount) == 1
+                    }
+                }
+            }
+
+            describe("with dependencies") {
+                var dependency: Field<String>!
+                var validationClosureInvocationCount = 0
+                var validationClosureValueArgument: String?
+                var validationClosureDependencyValueArgument: String?
+
+                beforeEach {
+                    validationClosureInvocationCount = 0
+                    validationClosureValueArgument = nil
+                    validationClosureDependencyValueArgument = nil
+                    dependency = Field(Id.dependency, name: "Dependency", value: nil)
+
+                    subject.validate(with: dependency) { value, dependencyValue -> [ValidationError] in
+                        validationClosureInvocationCount += 1
+                        validationClosureValueArgument = value
+                        validationClosureDependencyValueArgument = dependencyValue
+
+                        return []
+                    }
+                }
+
+                context("validates when changed") {
+                    beforeEach {
+                        subject.validatesWhen = .changed
+                    }
+
+                    context("when the value changes") {
+                        beforeEach {
+                            subject.value = "a new value"
+                        }
+
+                        it("validates") {
+                            expect(validationClosureInvocationCount) == 1
+                        }
+                        it("validates with the new value") {
+                            expect(validationClosureValueArgument) == "a new value"
+                        }
+                        it("validates with the current dependency value") {
+                            expect(validationClosureDependencyValueArgument).to(beNil())
+                        }
+                    }
+
+                    context("when the dependency value changes") {
+                        beforeEach {
+                            dependency.value = "a new value"
+                        }
+
+                        it("validates") {
+                            expect(validationClosureInvocationCount) == 1
+                        }
+                        it("validates with the current value") {
+                            expect(validationClosureValueArgument) == ""
+                        }
+                        it("validates with the new dependency value") {
+                            expect(validationClosureDependencyValueArgument) == "a new value"
+                        }
+                    }
+                }
+
+                context("validates when requested") {
+                    beforeEach {
+                        subject.validatesWhen = .requested
+                    }
+
+                    context("when the value changes") {
+                        beforeEach {
+                            subject.value = "a new value"
+                        }
+
+                        it("doesn't validate") {
+                            expect(validationClosureInvocationCount) == 0
+                            expect(validationClosureValueArgument).to(beNil())
+                            expect(validationClosureDependencyValueArgument).to(beNil())
+                        }
+                    }
+
+                    context("when the dependency value changes") {
+                        beforeEach {
+                            dependency.value = "a new value"
+                        }
+
+                        it("validates") {
+                            expect(validationClosureInvocationCount) == 1
+                        }
+                        it("validates with the current value") {
+                            expect(validationClosureValueArgument) == ""
+                        }
+                        it("validates with the new dependency value") {
+                            expect(validationClosureDependencyValueArgument) == "a new value"
+                        }
                     }
                 }
             }

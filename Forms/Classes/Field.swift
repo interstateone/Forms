@@ -21,6 +21,7 @@ public class UntypedField {
         self.untypedValue = value
     }
 
+    @discardableResult
     public func validate() -> [ValidationError] {
         return []
     }
@@ -43,6 +44,10 @@ public class Field<Value: Equatable>: UntypedField {
         didSet {
             valueChanged?(value)
             handleEvent(.change)
+            
+            for dependent in validationDependents {
+                dependent.validate()
+            }
         }
     }
     var valueChanged: ((Value?) -> Void)?
@@ -121,6 +126,7 @@ public class Field<Value: Equatable>: UntypedField {
     public typealias ValidationHandler = ([ValidationError]) -> Void
     public var onValidate: ValidationHandler?
     public var validatesWhen: ValidationTiming = .requested
+    /// The results of the last validation. Access doesn't result in validation being performed.
     public var lastValidationErrors: [ValidationError] = []
 
     public init<Id: RawRepresentable>(_ id: Id, name: String, value: Value?) where Id.RawValue == String {
@@ -128,6 +134,7 @@ public class Field<Value: Equatable>: UntypedField {
         super.init(id, name: name, value: value)
     }
 
+    /// Manually request validation. Results will be returned and stored in `lastValidationErrors` for future access without causing re-validation.
     @discardableResult
     public override func validate() -> [ValidationError] {
         lastValidationErrors = validators.flatMap { $0.validate(value) }
@@ -135,22 +142,39 @@ public class Field<Value: Equatable>: UntypedField {
         return lastValidationErrors
     }
 
-    // A little sugar to allow building a chained field definition
+    /// Adds a validator to be used in future validations
+    ///
+    /// - Parameter validator: A validator that can validate this field's Value type
+    /// - Returns: The field, for the purpose of chained method calls
+    @discardableResult
     public func validate<V: Validator>(with validator: V) -> Self where V.Value == Value {
         validators.append(ValidatorWrapper({ validator.validate($0) }))
         return self
     }
 
-    public func validate<A>(with field1: Field<A>, validator: @escaping (Value?, A?) -> [ValidationError]) -> Self {
-        validators.append(ValidatorWrapper({ validator($0, field1.value) }))
-        field1.validationDependents.append(self)
+    /// Adds a validator to be used in future validations, along with a field dependency
+    ///
+    /// - Parameter fieldDependency: A field that will be registered as a dependency for this validation. Changes to this field dependency's value will cause validation to occur immediately regardless of this field's validatesWhen property.
+    /// - Parameter validator: A validation closure that can validate this field's Value type and the type of the field dependency
+    /// - Returns: The field, for the purpose of chained method calls
+    @discardableResult
+    public func validate<A>(with fieldDependency: Field<A>, validator: @escaping (Value?, A?) -> [ValidationError]) -> Self {
+        validators.append(ValidatorWrapper({ validator($0, fieldDependency.value) }))
+        fieldDependency.validationDependents.append(self)
         return self
     }
 
-    public func validate<A, B>(with field1: Field<A>, field2: Field<B>, validator: @escaping (Value?, A?, B?) -> [ValidationError]) -> Self {
-        validators.append(ValidatorWrapper({ validator($0, field1.value, field2.value) }))
-        field1.validationDependents.append(self)
-        field2.validationDependents.append(self)
+    /// Adds a validator to be used in future validations, along with a two field dependencies
+    ///
+    /// - Parameter fieldDependency1: A field that will be registered as a dependency for this validation. Changes to this field dependency's value will cause validation to occur immediately regardless of this field's validatesWhen property.
+    /// - Parameter fieldDependency2: A second field that will be registered as a dependency for this validation. Changes to this field dependency's value will cause validation to occur immediately regardless of this field's validatesWhen property.
+    /// - Parameter validator: A validation closure that can validate this field's Value type and the type of the field dependency
+    /// - Returns: The field, for the purpose of chained method calls
+    @discardableResult
+    public func validate<A, B>(with fieldDependency1: Field<A>, and fieldDependency2: Field<B>, validator: @escaping (Value?, A?, B?) -> [ValidationError]) -> Self {
+        validators.append(ValidatorWrapper({ validator($0, fieldDependency1.value, fieldDependency2.value) }))
+        fieldDependency1.validationDependents.append(self)
+        fieldDependency2.validationDependents.append(self)
         return self
     }
 }
