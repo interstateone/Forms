@@ -1,0 +1,12 @@
+{
+    "Forms/Classes/*.swift": {
+        "type": "src",
+        "alternate": "Example/Tests/{}Tests.swift"
+    },
+    "Example/Tests/*Tests.swift": {
+        "type": "test",
+        "alternate": "Forms/Classes/{}.swift",
+        "make": "make test",
+        "dispatch": "make test"
+    }
+}
