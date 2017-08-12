@@ -122,7 +122,7 @@ public class Field<Value: Equatable>: UntypedField {
         state.handleEvent(event)
     }
 
-    public var validators: [ValidatorWrapper<Value>] = []
+    public var validators: [Validator<Value>] = []
     public typealias ValidationHandler = ([ValidationError]) -> Void
     public var onValidate: ValidationHandler?
     public var validatesWhen: ValidationTiming = .requested
@@ -137,7 +137,7 @@ public class Field<Value: Equatable>: UntypedField {
     /// Manually request validation. Results will be returned and stored in `lastValidationErrors` for future access without causing re-validation.
     @discardableResult
     public override func validate() -> [ValidationError] {
-        lastValidationErrors = validators.flatMap { $0.validate(value) }
+        lastValidationErrors = validators.joined().validate(value)
         onValidate?(lastValidationErrors)
         return lastValidationErrors
     }
@@ -147,8 +147,8 @@ public class Field<Value: Equatable>: UntypedField {
     /// - Parameter validator: A validator that can validate this field's Value type
     /// - Returns: The field, for the purpose of chained method calls
     @discardableResult
-    public func validate<V: Validator>(with validator: V) -> Self where V.Value == Value {
-        validators.append(ValidatorWrapper({ validator.validate($0) }))
+    public func validate(with validator: Validator<Value>) -> Self {
+        validators.append(validator)
         return self
     }
 
@@ -159,7 +159,7 @@ public class Field<Value: Equatable>: UntypedField {
     /// - Returns: The field, for the purpose of chained method calls
     @discardableResult
     public func validate<A>(with fieldDependency: Field<A>, validator: @escaping (Value?, A?) -> [ValidationError]) -> Self {
-        validators.append(ValidatorWrapper({ validator($0, fieldDependency.value) }))
+        validators.append(Validator({ validator($0, fieldDependency.value) }))
         fieldDependency.validationDependents.append(self)
         return self
     }
@@ -172,11 +172,15 @@ public class Field<Value: Equatable>: UntypedField {
     /// - Returns: The field, for the purpose of chained method calls
     @discardableResult
     public func validate<A, B>(with fieldDependency1: Field<A>, and fieldDependency2: Field<B>, validator: @escaping (Value?, A?, B?) -> [ValidationError]) -> Self {
-        validators.append(ValidatorWrapper({ validator($0, fieldDependency1.value, fieldDependency2.value) }))
+        validators.append(Validator({ validator($0, fieldDependency1.value, fieldDependency2.value) }))
         fieldDependency1.validationDependents.append(self)
         fieldDependency2.validationDependents.append(self)
         return self
     }
+}
+
+public enum ValidationTiming {
+    case requested, blurred, changed
 }
 
 public class CalculatedField<Value: Equatable>: Field<Value> {

@@ -16,7 +16,7 @@ enum Id: String {
 
 let emailField = Field(Id.email, name: "Email", value: credentials.email)
 let passwordField = Field(Id.password, name: "Password", value: credentials.password)
-                        .validate(with: CharacterSetValidator(notAllowed: .whitespacesAndNewlines)) 
+                        .validate(with: .invalidCharacters(.whitespacesAndNewlines) && .minimumLength(8))
                         .validate(with: emailField) { password, email -> [ValidationError] in
                             if let password = password, let email = email, password.contains(email) {
                                 return [ValidationError(errorDescription: "Password can't contain your email address")]
@@ -42,7 +42,7 @@ let section = Section(id: "section1", title: "Section 1", fields: [emailField, p
 let form = Form(sections: [section])
 
 print(form.values)
-passwordField.value = "new password"
+passwordField.value = "new"
 print(form.values)
 
 print(form.validate())
