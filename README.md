@@ -1,15 +1,10 @@
 # Forms
 
-[![CI Status](http://img.shields.io/travis/evans.brandon@gmail.com/Forms.svg?style=flat)](https://travis-ci.org/evans.brandon@gmail.com/Forms)
-[![Version](https://img.shields.io/cocoapods/v/Forms.svg?style=flat)](http://cocoapods.org/pods/Forms)
-[![License](https://img.shields.io/cocoapods/l/Forms.svg?style=flat)](http://cocoapods.org/pods/Forms)
-[![Platform](https://img.shields.io/cocoapods/p/Forms.svg?style=flat)](http://cocoapods.org/pods/Forms)
-
 ## Example
 
-To run the example project, clone the repo, and run `pod install` from the Example directory first.
+To run the example project, clone the repo, and run `pod install` from the Example directory first. There's also a playground in the workspace.
 
-## Requirements
+Run tests with `make test`.
 
 ## Installation
 
@@ -22,7 +17,7 @@ pod "Forms"
 
 ## Author
 
-evans.brandon@gmail.com, brandon@brandonevans.ca
+Brandon Evans, brandon@brandonevans.ca
 
 ## License
 
